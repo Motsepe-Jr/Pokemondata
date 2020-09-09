@@ -1,0 +1,146 @@
+---
+title: "Pokemon Dataset Prediction"
+author: "Hector Motsepe"
+date: "08/09/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Anlaysing Pokemon dataset
+
+```{r}
+pokemon <- read.csv('Pokemon.csv', header = TRUE)
+```
+## Understanding our the data ----
+```{r}
+dim((pokemon))
+head(pokemon)
+View(pokemon)
+tail(pokemon)
+str(pokemon)
+summary(pokemon)
+```
+
+# plot ----
+```{r}
+plot(pokemon)
+# plot(pokemon[, 3:10])
+# boxplot(pokemon[, 'Type.I'], pokemon[, 'Atk'])
+```
+
+# t test ----
+```{r}
+psychic <- pokemon[pokemon$Type.I == 'Psychic', 'Atk']
+psychic
+rock <-  pokemon[pokemon$Type.I == 'Rock', 'Atk']
+rock
+?t.test
+t.test(psychic, rock) 
+t.test(psychic, rock, var.equal = TRUE)
+t.test(psychic, rock, alternative = 'less')
+t.test(psychic[1:13], rock, paired = TRUE)
+length(psychic)
+length(rock)
+
+wilcox.test(psychic, rock)
+wilcox.test(psychic[1:13], rock, paired = TRUE)
+```
+## LINEAR REGRESSION (Attck and Defence) ----
+```{r}
+plot(pokemon$Atk, pokemon$Def)
+
+regModel <- lm(Def ~ Atk, data = pokemon)
+regModel
+abline(regModel$coefficients[1], regModel$coefficients[2], col= 'red', lwd = 2)
+summary(regModel)
+
+
+hist(regModel$residuals) 
+qqnorm(regModel$residuals)
+qqline(regModel$residuals, col = 'red', lwd = 2) # data does not fit the model very well, create another model
+
+
+regModelLog <-  lm(log10(Def) ~ Atk, data = pokemon)
+plot(pokemon$Atk, log10(pokemon$Def))
+abline(regModelLog$coefficients[1], regModelLog$coefficients[2], col= 'red', lwd=2)
+summary(regModelLog)
+
+hist(regModelLog$residuals) # looks better
+qqnorm(regModelLog$residuals)
+qqline(regModelLog$residuals, col = 'red', lwd = 2)
+```
+
+## Anova ----
+```{r}
+pokeSubset <- pokemon[pokemon$Type.I == 'Ghost' | 
+                        pokemon$Type.I == 'Grass' |
+                        pokemon$Type.I == 'Ground' |
+                        pokemon$Type.I == 'Ice' ,]
+
+head(pokeSubset)
+View(pokeSubset)
+pokeSubset$Type.I <- factor(pokeSubset$Type.I)
+plot(pokeSubset[, 'Type.I'], pokeSubset[, 'Atk'])
+
+
+oneWay <- lm(Atk ~ Type.I, data = pokeSubset) # predict attack based on type(factor)
+oneWay
+summary(oneWay)
+anova(oneWay)
+hist(oneWay$residuals)
+qqnorm(oneWay$residuals)
+qqline(oneWay$residuals, col = 2, lwd = 2)
+
+bartlett.test(pokeSubset$Atk, pokeSubset$Type.I)
+
+oneway.test(Atk ~ Type.I, data = pokeSubset, var.equal = TRUE)
+
+kruskal.test(pokeSubset$Atk, pokeSubset$Type.I)
+```
+
+# Post-hoc tests ----
+```{r}
+library(mosaic)
+TukeyHSD(oneWay)
+pairwise.t.test(pokeSubset$Atk, pokeSubset$Type.I, p.adjust.method = 'none')
+p.adjust(c(0.316, 0.069), method = 'holm')
+```
+# two-way anova
+
+```{r}
+pokeSubsettwo <- pokemon[pokemon$Type.I == 'Bug' |
+                           pokemon$Type.I == 'Electric' |
+                           pokemon$Type.I == 'Fire' |
+                           pokemon$Type.I == 'Poison', ]
+
+pokeSubsettwo$Type.I <- factor(pokeSubsettwo$Type.I)
+boxplot(Atk~Captive * Type.I, data = pokeSubsettwo, col = c('red', 'blue'))
+
+twoWay <- lm(Atk~Type.I * Captive, data= pokeSubsettwo)
+twoWayRev <- lm(Atk~ Captive * Type.I, data= pokeSubsettwo)
+twoWay
+summary(twoWay)
+anova(twoWay)
+anova(twoWayRev)
+```
+
+## TYPE III ss ----
+# Type 3 is globally accepted (recomended)
+
+```{r}
+library(car)
+TwoWay <- lm(Atk~Type.I *Captive, data = pokeSubsettwo, 
+              contrasts = list(Type.I = contr.sum, Captive = contr.sum))
+
+TwoWayRev <- lm(Atk~Captive * Type.I, data = pokeSubsettwo, 
+             contrasts = list(Type.I = contr.sum, Captive = contr.sum))
+
+Anova(TwoWay, type = 3)
+Anova(TwoWayRev, type = 3)
+```
+
+### BY HECTOR MOTSEPE 
+#(BCom honours in Information Management)
